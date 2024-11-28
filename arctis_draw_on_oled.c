@@ -45,8 +45,9 @@ int draw_bitmap(char bitmap[]) {
 void printUsage(char *bin) {
   wprintf(L"Usage:\n"
           L"Display text:\t%s t <text> \n"
-          L"Display image:\t%s i <img.pbm>\n",
-          bin, bin);
+          L"Display image:\t%s i <img.pbm>\n"
+          L"Display clear:\t%s c\n",
+          bin, bin, bin);
   exit(1);
 }
 
@@ -92,6 +93,9 @@ int main(int argc, char *argv[]) {
   } else if (*argv[1] == 't') {
     char bitmap[1024] = {0};
     text2bitmap(argv[2], bitmap);
+    return draw_bitmap(bitmap);
+  } else if (*argv[1] == 'c') {
+    char bitmap[1024] = {0};
     return draw_bitmap(bitmap);
   } else {
     printUsage(argv[0]);
