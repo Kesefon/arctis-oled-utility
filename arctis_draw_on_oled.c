@@ -2,11 +2,15 @@
 #include <wchar.h>
 #ifdef WIN32
 #include <windows.h>
+#else
+#include<unistd.h>
 #endif
 #include "hidapi/hidapi.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "font.h"
+
+hid_device *device_handle;
 
 void drawpx(int x, int y, int on, unsigned char *buffer) {
   if (on)
@@ -15,40 +19,44 @@ void drawpx(int x, int y, int on, unsigned char *buffer) {
     buffer[(x - 1) + (y / 8) * 128] &= ~(1 << (y & 7));
 }
 
-int draw_bitmap(char bitmap[]) {
-  int res;
-  hid_device *handle;
-
+void open_device() {
   // Initialize the hidapi library
-  res = hid_init();
+  hid_init();
 
   // Open the device using the VID & PID, no serial number
-  handle = hid_open(0x1038, 0x1290, NULL);
+  device_handle = hid_open(0x1038, 0x1290, NULL);
 
-  hid_set_nonblocking(handle, 0);
+  hid_set_nonblocking(device_handle, 0);
+}
+
+int draw_bitmap(char bitmap[]) {
+  int res;
 
   char data[1025] = {0};          // ein Byte zu klein um alle Pixel anzusprechen aber wenns ein Byte größer ist, reset die Basestation
   data[0] = 0x00;                 // Report type = 0;
   data[1] = 0xD2;                 // "Draw on screen" function
   memcpy(&data[4], bitmap, 1021); // WTF, warum [4]? müsste eigentlich 2 sein (hätte ich gesagt), aber sonst sind alle Pixel offset
 
-  res = hid_send_feature_report(handle, data, 1025);
-
-  // Close the device
-  hid_close(handle);
-
-  // Finalize the hidapi library
-  res = hid_exit();
+  res = hid_send_feature_report(device_handle, data, 1025);
 
   return 0;
+}
+
+void close_device() {
+  // Close the device
+  hid_close(device_handle);
+
+  // Finalize the hidapi library
+  hid_exit();
 }
 
 void printUsage(char *bin) {
   wprintf(L"Usage:\n"
           L"Display text:\t%s t <text> \n"
           L"Display image:\t%s i <img.pbm>\n"
-          L"Display clear:\t%s c\n",
-          bin, bin, bin);
+          L"Display clear:\t%s c\n"
+          L"Display video:\tffmpeg -i <video.mp4> -s 128x64 -r 15 -f image2pipe -c:v pbm - | %s v\n",
+          bin, bin, bin, bin);
 }
 
 int text2bitmap(char *text, char bitmap[1024]) {
@@ -83,7 +91,11 @@ int pbm2bitmap(char image_data[1034], char bitmap[1024]) {
 }
 
 int main(int argc, char *argv[]) {
-  if (*argv[1] == 'i') {
+
+  open_device();
+  atexit(close_device);
+
+  if (argc == 3 && *argv[1] == 'i') {
     FILE *image_file;
     if (*argv[2] == '-') {
       image_file = stdin;
@@ -107,11 +119,26 @@ int main(int argc, char *argv[]) {
       return 4;
     }
     return draw_bitmap(bitmap);
-  } else if (*argv[1] == 't') {
+  } else if (argc == 2 && *argv[1] == 'v') {
+    char image_data[1034] = {0};
+    char bitmap[1024] = {0};
+    while (fread(image_data, 1, 1034, stdin) == 1034) {
+        int ret = pbm2bitmap(image_data, bitmap);
+      if (ret) {
+        wprintf(L"Error while parsing pbm!\n Use a 128x64 sized Binary Portable BitMap (PBM)");
+        return 4;
+      }
+      draw_bitmap(bitmap);
+      usleep(60000); // if frames go brrrrrrrr basestation go ⣗⣒⣿⣾⣿⡹⣇⣿⣏⣚
+                     // this is round about 15fps
+                     // 30fps is almost stable
+    }
+    return 0;
+  } else if (argc == 3 && *argv[1] == 't') {
     char bitmap[1024] = {0};
     text2bitmap(argv[2], bitmap);
     return draw_bitmap(bitmap);
-  } else if (*argv[1] == 'c') {
+  } else if (argc == 2 && *argv[1] == 'c') {
     char bitmap[1024] = {0};
     return draw_bitmap(bitmap);
   } else {
