@@ -84,10 +84,15 @@ int pbm2bitmap(char image_data[1034], char bitmap[1024]) {
 
 int main(int argc, char *argv[]) {
   if (*argv[1] == 'i') {
-    FILE *image_file = fopen(argv[2], "rb");
-    if (image_file == NULL) {
-      wprintf(L"cannot open file!\n");
-      return 2;
+    FILE *image_file;
+    if (*argv[2] == '-') {
+      image_file = stdin;
+    } else {
+      image_file = fopen(argv[2], "rb");
+        if (image_file == NULL) {
+        wprintf(L"cannot open file!\n");
+        return 2;
+      }
     }
     char image_data[1034] = {0};
     const long image_size = fread(image_data, 1, 1034, image_file);
