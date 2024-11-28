@@ -1,4 +1,5 @@
 #include <string.h>
+#include <wchar.h>
 #ifdef WIN32
 #include <windows.h>
 #endif
@@ -48,10 +49,9 @@ void printUsage(char *bin) {
           L"Display image:\t%s i <img.pbm>\n"
           L"Display clear:\t%s c\n",
           bin, bin, bin);
-  exit(1);
 }
 
-char *text2bitmap(char *text, char bitmap[1024]) {
+int text2bitmap(char *text, char bitmap[1024]) {
   int cur_pos = 0;
   int line_num = 0;
   int i = 0;
@@ -66,7 +66,20 @@ char *text2bitmap(char *text, char bitmap[1024]) {
       cur_pos = 0;
     }
   }
-  return bitmap;
+  return 0;
+}
+
+int pbm2bitmap(char image_data[1034], char bitmap[1024]) {
+  if (image_data[0] != 'P' || image_data[1] != '4' ||
+      image_data[2] != 0x0A || image_data[3] != '1' || image_data[4] != '2' ||
+      image_data[5] != '8' || image_data[6] != ' ' || image_data[7] != '6' ||
+      image_data[8] != '4' || image_data[9] != 0x0A) {
+    return 1;
+  }
+  for (int i = 0; i <= 128 * 64; i++) {
+    drawpx(i % 128, i / 128, ~image_data[10 + (i / 8)] >> (7 - (i % 8)) & 1, bitmap);
+  }
+  return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -74,20 +87,19 @@ int main(int argc, char *argv[]) {
     FILE *image_file = fopen(argv[2], "rb");
     if (image_file == NULL) {
       wprintf(L"cannot open file!\n");
-      exit(2);
+      return 2;
     }
     char image_data[1034] = {0};
     const long image_size = fread(image_data, 1, 1034, image_file);
-    if (image_size != 1034 || image_data[0] != 'P' || image_data[1] != '4' ||
-        image_data[2] != 0x0A || image_data[3] != '1' || image_data[4] != '2' ||
-        image_data[5] != '8' || image_data[6] != ' ' || image_data[7] != '6' ||
-        image_data[8] != '4' || image_data[9] != 0x0A) {
-      wprintf(L"invalid file!\nUse a 128x64 sized Binary Portable BitMap (PBM) \n");
-      exit(3);
+    if (image_size != 1034 ) {
+      wprintf(L"Incorrect file size: %d expected: %d", image_size, 1034);
+      return 3;
     }
     char bitmap[1024] = {0};
-    for (int i = 0; i <= 128 * 64; i++) {
-      drawpx(i % 128, i / 128, ~image_data[10 + (i / 8)] >> (7 - (i % 8)) & 1, bitmap);
+    int ret = pbm2bitmap(image_data, bitmap);
+    if (ret) {
+      wprintf(L"Error while parsing pbm!\n Use a 128x64 sized Binary Portable BitMap (PBM)");
+      return 4;
     }
     return draw_bitmap(bitmap);
   } else if (*argv[1] == 't') {
@@ -99,5 +111,6 @@ int main(int argc, char *argv[]) {
     return draw_bitmap(bitmap);
   } else {
     printUsage(argv[0]);
+    return 1;
   }
 }
