@@ -65,6 +65,19 @@ int text2bitmap(char *text, char bitmap[1024]) {
   int i = 0;
   char letter;
   while (((letter = text[i++]) != 0) & (line_num < 10)) {
+    //going with CRLF style newlines
+    if (letter == ASCII_LF) {
+      line_num++;
+      continue;
+    }
+    if (letter == ASCII_CR) {
+      cur_pos = 0;
+      continue;
+    }
+    //catch all other non-printable characters
+    if (letter < 32 || letter > 126) {
+      continue;
+    }
     for (int j = 0; j < 5 * 5; j++) {
       drawpx((cur_pos * 5) + (j % 5), (line_num * 6) + (j / 5), font[letter][j], bitmap);
     }

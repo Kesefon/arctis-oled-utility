@@ -1,5 +1,8 @@
 const int FONT_SIZE = 5;
 
+const int ASCII_LF = 0x0A;
+const int ASCII_CR = 0x0D;
+
 const int font[127][5 * 5] = {
     {0, 0, 0, 0, 0,
      0, 0, 0, 0, 0,
