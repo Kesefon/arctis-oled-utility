@@ -3,7 +3,7 @@
 #ifdef WIN32
 #include <windows.h>
 #else
-#include<unistd.h>
+#include <unistd.h>
 #endif
 #include "hidapi/hidapi.h"
 #include <stdio.h>
@@ -32,10 +32,10 @@ void open_device() {
 int draw_bitmap(char bitmap[]) {
   int res;
 
-  char data[1025] = {0};          // ein Byte zu klein um alle Pixel anzusprechen aber wenns ein Byte größer ist, reset die Basestation
+  char data[1025] = {0};          // 1 Byte too small for full 128x64 resolution, but when this is increased, the base station resets.
   data[0] = 0x00;                 // Report type = 0;
   data[1] = 0xD2;                 // "Draw on screen" function
-  memcpy(&data[4], bitmap, 1021); // WTF, warum [4]? müsste eigentlich 2 sein (hätte ich gesagt), aber sonst sind alle Pixel offset
+  memcpy(&data[4], bitmap, 1021); // WTF, why [4]? I assumed this to be 2, but that shifts all pixel. Should be re-investigated.
 
   res = hid_send_feature_report(device_handle, data, 1025);
 
